@@ -151,6 +151,12 @@ The source test confirms the expected runtime files, blocks hard-coded developer
 
 The Scheduled Task runs as the signed-in user and requires no administrator privileges after installation. Do not place secrets, session exports, logs, Stream Deck profiles, or active `state.json` files in the repository.
 
+## Maintenance And Warranty
+
+This project is provided as-is. Updates may be published occasionally, but there is no promised maintenance schedule, support commitment, compatibility guarantee, or obligation to keep pace with Codex, Windows, or Stream Deck changes.
+
+To the fullest extent permitted by law, the project is provided without warranty of any kind, whether express, implied, or statutory. Review the source, test it in your own environment, and decide whether it is appropriate for your workflow before relying on it for unattended work.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).
