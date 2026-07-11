@@ -1,8 +1,10 @@
 # Codex Crash Recovery
 
-`Codex Crash Recovery` is a local Windows watchdog for long-running Codex Desktop work. It records the active Codex thread, watches for an unexpected Codex Desktop exit, and reopens the recorded thread after a bounded confirmation window.
+`Codex Crash Recovery` is a local Windows watchdog for long-running Codex Desktop work. It records the active Codex thread, watches for an unexpected Codex Desktop exit, and reopens the recorded thread after a bounded confirmation window. It is intended to accompany a persistent Codex `/goal`, rather than replace Codex's own goal-continuation behavior.
 
 It is designed for unattended development runs where losing the desktop app would otherwise leave work stranded. It is deliberately conservative: recovery reopens the app and thread, but it does **not** send a prompt, approve tools, execute commands, or make server changes.
+
+**[Download the latest release](https://github.com/EliteHorizonGames/codex-crash-recovery/releases/latest)** for normal installation. Cloning the repository is only needed for development or contributing changes.
 
 ## What It Does
 
@@ -17,7 +19,7 @@ It is designed for unattended development runs where losing the desktop app woul
 ## What It Does Not Do
 
 - It cannot prove that a running Codex process is healthy or responsive; it detects a missing process, not a frozen UI.
-- It does not resume a command-line Codex session or submit a continuation message. You remain in control of any new work.
+- It does not resume a command-line Codex session or submit a continuation message. It relies on the reopened Codex task having an active persistent `/goal` to retain and continue its direction; otherwise you must continue the task yourself.
 - It does not start before an interactive Windows logon, and it cannot recover a signed-out or unavailable Codex account.
 - `codex://threads/<thread-id>` is a practical desktop deep link, not a documented stability guarantee from OpenAI. Test it after Codex updates.
 - `-UseMostRecentSession` is only a fallback. It may select the wrong thread if several tasks have recently been active.
@@ -27,23 +29,64 @@ It is designed for unattended development runs where losing the desktop app woul
 - Windows 10 or 11 with the Codex Desktop app installed and signed in.
 - PowerShell and Windows Task Scheduler.
 - A user session: the Scheduled Task runs at logon, not as a background service before login.
+- An active persistent Codex `/goal` for unattended work. The watchdog restores the task window; `/goal` is the mechanism that preserves the task's autonomous continuation intent.
 - Optional but strongly recommended: a Stream Deck pause/resume control. This marks an intentional close before you stop or cancel Codex, preventing unwanted recovery.
 
 The runtime state and logs live under `%USERPROFILE%\.codex\autonomy-watchdog`. They are intentionally ignored by Git.
 
-## Install
+## Quick Start
 
-Clone this repository, open PowerShell in the clone, then install the files and Scheduled Task:
+Open the Codex task you want to protect, make sure it has its persistent `/goal`, then download and extract the [latest release](https://github.com/EliteHorizonGames/codex-crash-recovery/releases/latest). Open PowerShell in the extracted folder and run one script:
 
 ```powershell
-.\Install-CodexCrashRecovery.ps1 -InstallScheduledTask
+.\QuickStart-CodexCrashRecovery.ps1
 ```
 
-This copies the runtime scripts to `%USERPROFILE%\.codex\autonomy-watchdog` and creates the `Elite Horizon Codex Autonomy Watchdog` task. The task launches invisibly through `wscript.exe`, so the minute health check does not flash a PowerShell window.
+That installs every required file, creates the hidden `Elite Horizon Codex Autonomy Watchdog` Scheduled Task, and arms recovery for the most recent Codex task using the current folder as its workspace. No UUID, task path, or Task Scheduler setup is required.
 
-## Arm A Run
+To install the optional Stream Deck PAUSE/RESUME switch at the same time:
 
-Use the UUID from the Codex task URL or route:
+```powershell
+.\QuickStart-CodexCrashRecovery.ps1 -InstallStreamDeck
+```
+
+When more than one compatible Stream Deck page exists, the installer shows a short numbered list. Choose the page once; it creates a timestamped backup before changing it.
+
+For development, clone the repository instead and run the same installer from the checkout.
+
+## Use With A Persistent `/goal`
+
+Start the Codex task with a persistent `/goal` before arming the watchdog. The goal should state the objective, the unattended/autonomous expectation, and any safe stop conditions. The watchdog is intentionally only the recovery layer: after an unexpected desktop-app exit, it reopens the saved task and lets the task's existing `/goal` govern continuation. It never fabricates a prompt or silently changes the goal.
+
+## Everyday Controls
+
+These are short commands from the installed runtime folder. They do not require a UUID.
+
+```powershell
+# Arm or re-arm the most recent Codex task for the current workspace.
+& "$HOME\.codex\autonomy-watchdog\Arm-CodexCrashRecovery.ps1"
+
+# Unarm before you intentionally cancel or close Codex.
+& "$HOME\.codex\autonomy-watchdog\Unarm-CodexCrashRecovery.ps1"
+
+# Add the optional Stream Deck PAUSE/RESUME switch later.
+& "$HOME\.codex\autonomy-watchdog\Install-StreamDeckStopButton.ps1"
+```
+
+## Advanced: Manually Arm Or Change A Run (Optional)
+
+**Most users can skip this section.** Once the watchdog has been armed for a persistent `/goal`, it keeps that remembered task across normal restarts. In a normal established workflow, a goal integration can arm it for you. These commands are only for first-time manual setup, deliberately changing the tracked task, or troubleshooting.
+
+The simple manual option is one PowerShell command from the workspace you want to associate with the current Codex task:
+
+```powershell
+& "$HOME\.codex\autonomy-watchdog\Start-CodexAutonomyRun.ps1" `
+  -UseMostRecentSession `
+  -WorkspacePath (Get-Location) `
+  -Label 'My Codex goal'
+```
+
+For an exact, manually selected task, use the UUID from the Codex task URL or route:
 
 ```powershell
 & "$HOME\.codex\autonomy-watchdog\Start-CodexAutonomyRun.ps1" `
@@ -52,16 +95,7 @@ Use the UUID from the Codex task URL or route:
   -Label 'Overnight development run'
 ```
 
-For a fallback only, after checking that Codex has one clearly most-recent task:
-
-```powershell
-& "$HOME\.codex\autonomy-watchdog\Start-CodexAutonomyRun.ps1" `
-  -UseMostRecentSession `
-  -WorkspacePath 'C:\Path\To\Workspace' `
-  -Label 'Overnight development run'
-```
-
-During a sustained run, refresh the watchdog heartbeat after meaningful work:
+`-UseMostRecentSession` is only appropriate when the intended Codex task is unmistakably the latest one. During a sustained run, an integration can refresh the watchdog heartbeat after meaningful work:
 
 ```powershell
 & "$HOME\.codex\autonomy-watchdog\Heartbeat-CodexAutonomyRun.ps1" `
@@ -86,15 +120,13 @@ Re-arm the remembered run later:
 
 The optional Stream Deck helper installs two actions on an existing profile page: `PAUSE AUTO` and `RESUME AUTO`. They only modify the local recovery marker. They never kill Codex, launch Codex, approve actions, or send prompts.
 
-Give the installer the exact Stream Deck profile-page `manifest.json`; the repository does not know or publish your profile identity:
+Normally, simply run the installer without parameters and choose from its numbered page list:
 
 ```powershell
-& "$HOME\.codex\autonomy-watchdog\Install-StreamDeckStopButton.ps1" `
-  -ProfileManifestPath "$env:APPDATA\Elgato\StreamDeck\ProfilesV3\<profile>\Profiles\<page>\manifest.json" `
-  -KeyPosition '3,1'
+& "$HOME\.codex\autonomy-watchdog\Install-StreamDeckStopButton.ps1"
 ```
 
-Restart Stream Deck after installation. The button label describes the action it will take; Stream Deck can show a stale visual state after an app restart, so the local watchdog state remains authoritative.
+It automatically finds compatible local Stream Deck profile pages with a free key at `3,1`. Advanced users may still supply `-ProfileManifestPath` and `-KeyPosition` when they need an exact target. Restart Stream Deck after installation. The button label describes the action it will take; Stream Deck can show a stale visual state after an app restart, so the local watchdog state remains authoritative.
 
 ## Inspecting State And Logs
 

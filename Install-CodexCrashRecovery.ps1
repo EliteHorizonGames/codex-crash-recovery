@@ -10,6 +10,8 @@ $sourceFiles = @(
     'CodexAutonomyWatchdog.Common.ps1', 'Get-CodexAutonomyWatchdogStatus.ps1',
     'Heartbeat-CodexAutonomyRun.ps1', 'Install-CodexAutonomyWatchdog.ps1',
     'Install-StreamDeckStopButton.ps1', 'Resume-CodexAutonomyRun.ps1',
+    'QuickStart-CodexCrashRecovery.ps1', 'Arm-CodexCrashRecovery.ps1',
+    'Unarm-CodexCrashRecovery.ps1',
     'Run-CodexAutonomyWatchdog.vbs', 'Start-CodexAutonomyRun.ps1',
     'Stop-CodexAutonomyRun.ps1', 'StreamDeck-Resume-CodexAutonomy.vbs',
     'StreamDeck-Stop-CodexAutonomy.vbs', 'Watch-CodexAutonomy.ps1'

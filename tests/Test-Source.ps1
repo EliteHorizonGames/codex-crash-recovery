@@ -2,8 +2,16 @@
 param()
 
 $root = Split-Path -Parent $PSScriptRoot
+$requiredFiles = @('QuickStart-CodexCrashRecovery.ps1', 'Install-CodexCrashRecovery.ps1', 'Install-StreamDeckStopButton.ps1', 'Arm-CodexCrashRecovery.ps1', 'Unarm-CodexCrashRecovery.ps1')
 $scriptFiles = Get-ChildItem -LiteralPath $root -Filter '*.ps1' -File
 $failed = $false
+
+foreach ($requiredFile in $requiredFiles) {
+    if (-not (Test-Path -LiteralPath (Join-Path $root $requiredFile) -PathType Leaf)) {
+        $failed = $true
+        Write-Error ('Required public entry point is missing: {0}' -f $requiredFile)
+    }
+}
 
 foreach ($scriptFile in $scriptFiles) {
     $tokens = $null
