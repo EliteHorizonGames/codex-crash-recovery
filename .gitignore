@@ -1,0 +1,12 @@
+state.json
+state.previous.json
+watchdog.log
+watchdog.events.jsonl
+watchdog.log.previous
+watchdog.events.jsonl.previous
+burner-*.txt
+state.*.tmp
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
