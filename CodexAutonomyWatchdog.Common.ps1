@@ -16,6 +16,7 @@ function Enter-WatchdogStateLock {
         }
     } catch [System.Threading.AbandonedMutexException] {
         # The previous owner exited unexpectedly; this process now owns the lock.
+        Write-Verbose 'Recovered an abandoned Codex autonomy watchdog state lock.'
     }
 
     $mutex
@@ -63,6 +64,7 @@ function Write-WatchdogLog {
         } | ConvertTo-Json -Compress | Add-Content -LiteralPath $script:EventLogPath
     } catch {
         # Logging must never stop recovery or overwrite the original operational failure.
+        Write-Verbose ('Watchdog logging failed: {0}' -f $_.Exception.Message)
     }
 }
 
@@ -118,17 +120,17 @@ function Add-WatchdogEvent {
         [string]$Message
     )
 
-    $event = [pscustomobject]@{
+    $watchdogEvent = [pscustomobject]@{
         at = Get-WatchdogTimestamp
         kind = $Kind
         message = $Message
     }
 
-    $events = @($State.events) + $event
+    $events = @($State.events) + $watchdogEvent
     $State.events = @($events | Select-Object -Last 30)
 }
 
-function Get-CodexDesktopProcesses {
+function Get-CodexDesktopProcess {
     $package = Get-AppxPackage -Name OpenAI.Codex -ErrorAction Stop
     $manifest = $package | Get-AppxPackageManifest
     $relativeExecutable = $manifest.Package.Applications.Application.Executable.Replace('/', [string][System.IO.Path]::DirectorySeparatorChar)
@@ -145,7 +147,7 @@ function Get-CodexDesktopProcesses {
 
 function Test-CodexDesktopReady {
     @(
-        Get-CodexDesktopProcesses |
+        Get-CodexDesktopProcess |
             Where-Object { $_.MainWindowHandle -ne 0 }
     ).Count -gt 0
 }
@@ -202,8 +204,13 @@ function Get-CodexDesktopAppId {
 }
 
 function Start-CodexDesktop {
+    [CmdletBinding(SupportsShouldProcess)]
+    param()
+
     $applicationId = Get-CodexDesktopAppId
-    Start-Process -FilePath "$env:WINDIR\explorer.exe" -ArgumentList "shell:AppsFolder\$applicationId" | Out-Null
+    if ($PSCmdlet.ShouldProcess('Codex Desktop', 'Start')) {
+        Start-Process -FilePath "$env:WINDIR\explorer.exe" -ArgumentList "shell:AppsFolder\$applicationId" | Out-Null
+    }
 }
 
 function Open-CodexThread {
